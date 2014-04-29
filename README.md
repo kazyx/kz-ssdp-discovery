@@ -3,14 +3,15 @@ KzSoDiscovery
 - SSDP client library specialized to find Sony camera API endpoint.
 - Standard SSDP search is also supported.
 
-
 ##Build
 1. Clone repository.
  ``` bash
  git clone git@github.com:kazyx/KzSoDiscovery.git
  ```
 
-2. Open /Project/KzSoDiscovery.sln by Visual Studio 2012 for WP.
+2. Open csproj file by Visual Studio
+ - /Project/KzSoDiscovery.csproj for Windows Phone 8.
+ - /Project/KzSoDiscoveryUniversal.csproj for Universal Windows application.
 
 ##Discover sony camera API endpoint.
 1. Create SoDiscovery instance and set Event handler.
