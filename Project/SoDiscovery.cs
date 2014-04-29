@@ -25,6 +25,15 @@ namespace Kazyx.DeviceDiscovery
         private const int SSDP_PORT = 1900;
         private const int RESULT_BUFFER = 8192;
 
+        public const string ST_ALL = "ssdp:all";
+
+        private uint _MX = 1;
+        public uint MX
+        {
+            set { _MX = value; }
+            get { return _MX; }
+        }
+
         private readonly TimeSpan DEFAULT_TIMEOUT = new TimeSpan(0, 0, 5);
 
         public delegate void ScalarDeviceHandler(object sender, ScalarDeviceEventArgs e);
@@ -61,9 +70,9 @@ namespace Kazyx.DeviceDiscovery
             }
         }
 
-        private async Task Search(string st, TimeSpan? timeout = null)
+        private async void Search(string st, TimeSpan? timeout = null)
         {
-            Debug.WriteLine("SoDiscovery.SearchDevices");
+            Log("Search");
 
             int timeoutSec = (timeout == null) ? (int)DEFAULT_TIMEOUT.TotalSeconds : (int)timeout.Value.TotalSeconds;
 
@@ -72,21 +81,17 @@ namespace Kazyx.DeviceDiscovery
                 timeoutSec = 2;
             }
 
-            const int MX = 1;
-
             var ssdp_data = new StringBuilder()
                 .Append("M-SEARCH * HTTP/1.1").Append("\r\n")
                 .Append("HOST: ").Append(MULTICAST_ADDRESS).Append(":").Append(SSDP_PORT.ToString()).Append("\r\n")
                 .Append("MAN: ").Append("\"ssdp:discover\"").Append("\r\n")
                 .Append("MX: ").Append(MX.ToString()).Append("\r\n")
                 .Append("ST: ").Append(st).Append("\r\n")
-                //.Append("ST: ssdp:all").Append("\r\n") // For debug
                 .Append("\r\n")
                 .ToString();
-            byte[] data_byte = Encoding.UTF8.GetBytes(ssdp_data);
-            //Debug.WriteLine(ssdp_data);
+            var data_byte = Encoding.UTF8.GetBytes(ssdp_data);
 
-            bool timeout_called = false;
+            var timeout_called = false;
 
             var DD_Handler = new AsyncCallback(ar =>
             {
@@ -110,7 +115,7 @@ namespace Kazyx.DeviceDiscovery
                         }
                         catch (Exception)
                         {
-                            Debug.WriteLine("Invalid XML");
+                            Log("Invalid XML");
                             //Invalid XML.
                         }
                     }
@@ -122,14 +127,14 @@ namespace Kazyx.DeviceDiscovery
             });
 
 #if WINDOWS_PHONE
-            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             socket.SendBufferSize = data_byte.Length;
 
-            SocketAsyncEventArgs snd_event_args = new SocketAsyncEventArgs();
+            var snd_event_args = new SocketAsyncEventArgs();
             snd_event_args.RemoteEndPoint = new IPEndPoint(IPAddress.Parse(MULTICAST_ADDRESS), SSDP_PORT);
             snd_event_args.SetBuffer(data_byte, 0, data_byte.Length);
 
-            SocketAsyncEventArgs rcv_event_args = new SocketAsyncEventArgs();
+            var rcv_event_args = new SocketAsyncEventArgs();
             rcv_event_args.SetBuffer(new byte[RESULT_BUFFER], 0, RESULT_BUFFER);
 
             var SND_Handler = new EventHandler<SocketAsyncEventArgs>((sender, e) =>
@@ -147,7 +152,7 @@ namespace Kazyx.DeviceDiscovery
                 if (e.SocketError == SocketError.Success && e.LastOperation == SocketAsyncOperation.Receive)
                 {
                     string result = Encoding.UTF8.GetString(e.Buffer, 0, e.BytesTransferred);
-                    //Debug.WriteLine(result);
+                    //Log(result);
 
                     GetDeviceDescriptionAsync(DD_Handler, result);
 
@@ -157,7 +162,7 @@ namespace Kazyx.DeviceDiscovery
             rcv_event_args.Completed += RCV_Handler;
             socket.SendToAsync(snd_event_args);
 #elif NETFX_CORE
-            var sock = new DatagramSocket();
+            var socket = new DatagramSocket();
             var handler = new TypedEventHandler<DatagramSocket, DatagramSocketMessageReceivedEventArgs>((sender, args) =>
             {
                 if (timeout_called || args == null)
@@ -165,12 +170,12 @@ namespace Kazyx.DeviceDiscovery
                     return;
                 }
                 var reader = args.GetDataReader();
-                string data = reader.ReadString(reader.UnconsumedBufferLength);
-                Debug.WriteLine(data);
+                var data = reader.ReadString(reader.UnconsumedBufferLength);
+                Log(data);
 
-                GetDDAsync(DD_Handler, data);
+                GetDeviceDescriptionAsync(DD_Handler, data);
             });
-            sock.MessageReceived += handler;
+            socket.MessageReceived += handler;
 
             var profile = NetworkInformation.GetInternetConnectionProfile();
             if (profile == null)
@@ -180,50 +185,49 @@ namespace Kazyx.DeviceDiscovery
 
             try
             {
-                await sock.BindServiceNameAsync("", profile.NetworkAdapter);
+                await socket.BindServiceNameAsync("", profile.NetworkAdapter);
             }
             catch (Exception)
             {
-                Debug.WriteLine("Failed to bind NetworkAdapter");
+                Log("Failed to bind NetworkAdapter");
                 return;
             }
 
-            var host = new HostName(multicast_address);
+            var host = new HostName(MULTICAST_ADDRESS);
             try
             {
-                var output = await sock.GetOutputStreamAsync(host, ssdp_port.ToString());
+                var output = await socket.GetOutputStreamAsync(host, SSDP_PORT.ToString());
                 await output.WriteAsync(data_byte.AsBuffer());
-                await sock.OutputStream.FlushAsync();
+                await socket.OutputStream.FlushAsync();
             }
             catch (Exception)
             {
-                Debug.WriteLine("Failed to send multicast");
+                Log("Failed to send multicast");
                 return;
             }
 #endif
 
-            await RunTimeoutInvokerAsync(timeoutSec, () =>
-            {
-                Debug.WriteLine("SSDP Timeout");
-                timeout_called = true;
+            await Task.Delay(TimeSpan.FromSeconds(timeoutSec));
+
+            Log("Search Timeout");
+            timeout_called = true;
 #if WINDOWS_PHONE
-                snd_event_args.Completed -= SND_Handler;
-                rcv_event_args.Completed -= RCV_Handler;
-                socket.Close();
+            snd_event_args.Completed -= SND_Handler;
+            rcv_event_args.Completed -= RCV_Handler;
+            socket.Close();
 #elif NETFX_CORE
-                sock.Dispose();
+            socket.Dispose();
 #endif
-                OnTimeout(new EventArgs());
-            });
+            OnTimeout(new EventArgs());
         }
 
         /// <summary>
         /// Search sony camera devices and retrieve the endpoint URLs.
         /// </summary>
         /// <param name="timeout">Timeout to end up search.</param>
-        public async void SearchScalarDevices(TimeSpan? timeout = null)
+        public void SearchScalarDevices(TimeSpan? timeout = null)
         {
-            await Search("urn:schemas-sony-com:service:ScalarWebAPI:1", timeout);
+            Search("urn:schemas-sony-com:service:ScalarWebAPI:1", timeout);
         }
 
         /// <summary>
@@ -231,15 +235,13 @@ namespace Kazyx.DeviceDiscovery
         /// </summary>
         /// <param name="st">Search Target parameter for SSDP.</param>
         /// <param name="timeout">Timeout to end up search.</param>
-        public async void SearchUpnpDevices(string st, TimeSpan? timeout = null)
+        public void SearchUpnpDevices(string st = ST_ALL, TimeSpan? timeout = null)
         {
-            await Search(st, timeout);
-        }
-
-        private async Task RunTimeoutInvokerAsync(int TimeoutSec, Action OnTimeout)
-        {
-            await Task.Delay(TimeSpan.FromSeconds(TimeoutSec));
-            OnTimeout.Invoke();
+            if (string.IsNullOrEmpty(st))
+            {
+                st = ST_ALL;
+            }
+            Search(st, timeout);
         }
 
         private static void GetDeviceDescriptionAsync(AsyncCallback ac, string data)
@@ -296,7 +298,7 @@ namespace Kazyx.DeviceDiscovery
 
         private static ScalarDeviceInfo AnalyzeDD(string response)
         {
-            //Debug.WriteLine(response);
+            //Log(response);
             var endpoints = new Dictionary<string, string>();
 
             var xml = XDocument.Parse(response);
@@ -329,6 +331,11 @@ namespace Kazyx.DeviceDiscovery
             }
 
             return new ScalarDeviceInfo(udn, m_name, f_name, endpoints);
+        }
+
+        private static void Log(string message)
+        {
+            Debug.WriteLine("[SoDiscovery] " + message);
         }
     }
 
