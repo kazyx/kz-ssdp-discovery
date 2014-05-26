@@ -162,7 +162,6 @@ namespace Kazyx.DeviceDiscovery
             rcv_event_args.Completed += RCV_Handler;
             socket.SendToAsync(snd_event_args);
 #elif NETFX_CORE
-            var socket = new DatagramSocket();
             var handler = new TypedEventHandler<DatagramSocket, DatagramSocketMessageReceivedEventArgs>((sender, args) =>
             {
                 if (timeout_called || args == null)
@@ -175,35 +174,50 @@ namespace Kazyx.DeviceDiscovery
 
                 GetDeviceDescriptionAsync(DD_Handler, data);
             });
-            socket.MessageReceived += handler;
 
-            var profile = NetworkInformation.GetInternetConnectionProfile();
-            if (profile == null)
+            var filter = new ConnectionProfileFilter
             {
-                return;
-            }
+                IsConnected = true,
+                IsWwanConnectionProfile = false,
+                IsWlanConnectionProfile = true
+            };
+            var profiles = await NetworkInformation.FindConnectionProfilesAsync(filter);
+            var sockets = new List<DatagramSocket>();
+            foreach (var profile in profiles)
+            {
+                /*
+                var profile = NetworkInformation.GetInternetConnectionProfile();
+                if (profile == null)
+                {
+                    return;
+                }
+                */
+                var socket = new DatagramSocket();
+                sockets.Add(socket);
+                socket.MessageReceived += handler;
+                try
+                {
+                    Log("Send M-Search to " + profile.ProfileName);
+                    await socket.BindServiceNameAsync("", profile.NetworkAdapter);
+                }
+                catch (Exception)
+                {
+                    Log("Failed to bind NetworkAdapter");
+                    return;
+                }
 
-            try
-            {
-                await socket.BindServiceNameAsync("", profile.NetworkAdapter);
-            }
-            catch (Exception)
-            {
-                Log("Failed to bind NetworkAdapter");
-                return;
-            }
-
-            var host = new HostName(MULTICAST_ADDRESS);
-            try
-            {
-                var output = await socket.GetOutputStreamAsync(host, SSDP_PORT.ToString());
-                await output.WriteAsync(data_byte.AsBuffer());
-                await socket.OutputStream.FlushAsync();
-            }
-            catch (Exception)
-            {
-                Log("Failed to send multicast");
-                return;
+                var host = new HostName(MULTICAST_ADDRESS);
+                try
+                {
+                    var output = await socket.GetOutputStreamAsync(host, SSDP_PORT.ToString());
+                    await output.WriteAsync(data_byte.AsBuffer());
+                    await socket.OutputStream.FlushAsync();
+                }
+                catch (Exception)
+                {
+                    Log("Failed to send multicast");
+                    return;
+                }
             }
 #endif
 
@@ -216,7 +230,10 @@ namespace Kazyx.DeviceDiscovery
             rcv_event_args.Completed -= RCV_Handler;
             socket.Close();
 #elif NETFX_CORE
-            socket.Dispose();
+            foreach (var socket in sockets)
+            {
+                socket.Dispose();
+            }
 #endif
             OnTimeout(new EventArgs());
         }
