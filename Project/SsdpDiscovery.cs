@@ -380,7 +380,7 @@ namespace Kazyx.DeviceDiscovery
             this.info = info;
         }
 
-        public SonyCameraDeviceInfo ScalarDevice
+        public SonyCameraDeviceInfo SonyCameraDevice
         {
             get { return info; }
         }
