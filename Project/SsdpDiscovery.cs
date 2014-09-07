@@ -19,7 +19,7 @@ using Windows.Networking.Connectivity;
 
 namespace Kazyx.DeviceDiscovery
 {
-    public class SoDiscovery
+    public class SsdpDiscovery
     {
         private const string MULTICAST_ADDRESS = "239.255.255.250";
         private const int SSDP_PORT = 1900;
@@ -36,15 +36,15 @@ namespace Kazyx.DeviceDiscovery
 
         private readonly TimeSpan DEFAULT_TIMEOUT = new TimeSpan(0, 0, 5);
 
-        public delegate void ScalarDeviceHandler(object sender, ScalarDeviceEventArgs e);
+        public delegate void SonyCameraDeviceHandler(object sender, SonyCameraDeviceEventArgs e);
 
-        public event ScalarDeviceHandler ScalarDeviceDiscovered;
+        public event SonyCameraDeviceHandler SonyCameraDeviceDiscovered;
 
-        protected void OnDiscovered(ScalarDeviceEventArgs e)
+        protected void OnDiscovered(SonyCameraDeviceEventArgs e)
         {
-            if (ScalarDeviceDiscovered != null)
+            if (SonyCameraDeviceDiscovered != null)
             {
-                ScalarDeviceDiscovered(this, e);
+                SonyCameraDeviceDiscovered(this, e);
             }
         }
 
@@ -111,7 +111,7 @@ namespace Kazyx.DeviceDiscovery
                         {
                             var response = reader.ReadToEnd();
                             OnDiscovered(new DeviceDescriptionEventArgs(response));
-                            OnDiscovered(new ScalarDeviceEventArgs(AnalyzeDD(response)));
+                            OnDiscovered(new SonyCameraDeviceEventArgs(AnalyzeDescription(response)));
                         }
                         catch (Exception)
                         {
@@ -242,7 +242,7 @@ namespace Kazyx.DeviceDiscovery
         /// Search sony camera devices and retrieve the endpoint URLs.
         /// </summary>
         /// <param name="timeout">Timeout to end up search.</param>
-        public void SearchScalarDevices(TimeSpan? timeout = null)
+        public void SearchSonyCameraDevices(TimeSpan? timeout = null)
         {
             Search("urn:schemas-sony-com:service:ScalarWebAPI:1", timeout);
         }
@@ -313,7 +313,7 @@ namespace Kazyx.DeviceDiscovery
         private const string upnp_ns = "{urn:schemas-upnp-org:device-1-0}";
         private const string sony_ns = "{urn:schemas-sony-com:av}";
 
-        private static ScalarDeviceInfo AnalyzeDD(string response)
+        private static SonyCameraDeviceInfo AnalyzeDescription(string response)
         {
             //Log(response);
             var endpoints = new Dictionary<string, string>();
@@ -347,7 +347,7 @@ namespace Kazyx.DeviceDiscovery
                 throw new XmlException("No endoint found in XML");
             }
 
-            return new ScalarDeviceInfo(udn, m_name, f_name, endpoints);
+            return new SonyCameraDeviceInfo(udn, m_name, f_name, endpoints);
         }
 
         private static void Log(string message)
@@ -371,16 +371,16 @@ namespace Kazyx.DeviceDiscovery
         }
     }
 
-    public class ScalarDeviceEventArgs : EventArgs
+    public class SonyCameraDeviceEventArgs : EventArgs
     {
-        private readonly ScalarDeviceInfo info;
+        private readonly SonyCameraDeviceInfo info;
 
-        public ScalarDeviceEventArgs(ScalarDeviceInfo info)
+        public SonyCameraDeviceEventArgs(SonyCameraDeviceInfo info)
         {
             this.info = info;
         }
 
-        public ScalarDeviceInfo ScalarDevice
+        public SonyCameraDeviceInfo ScalarDevice
         {
             get { return info; }
         }

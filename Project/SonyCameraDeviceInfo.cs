@@ -2,9 +2,9 @@ using System.Collections.Generic;
 
 namespace Kazyx.DeviceDiscovery
 {
-    public class ScalarDeviceInfo
+    public class SonyCameraDeviceInfo
     {
-        internal ScalarDeviceInfo(string udn, string mname, string fname, Dictionary<string, string> ep)
+        internal SonyCameraDeviceInfo(string udn, string mname, string fname, Dictionary<string, string> ep)
         {
             UDN = udn;
             ModelName = mname;

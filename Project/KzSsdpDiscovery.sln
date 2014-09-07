@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Express 2012 for Windows Phone
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KzSoDiscovery", "KzSoDiscovery.csproj", "{D00C8BED-9BE9-47FF-BB28-80FDC7227CC6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "KzSsdpDiscovery", "KzSsdpDiscovery.csproj", "{D00C8BED-9BE9-47FF-BB28-80FDC7227CC6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

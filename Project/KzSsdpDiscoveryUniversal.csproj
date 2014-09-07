@@ -9,7 +9,7 @@
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>Kazyx.DeviceDiscovery</RootNamespace>
-    <AssemblyName>KzSoDiscovery</AssemblyName>
+    <AssemblyName>KzSsdpDiscovery</AssemblyName>
     <TargetFrameworkVersion>v4.6</TargetFrameworkVersion>
     <TargetFrameworkProfile>Profile32</TargetFrameworkProfile>
     <DefaultLanguage>en-US</DefaultLanguage>
@@ -42,8 +42,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ScalarDeviceInfo.cs" />
-    <Compile Include="SoDiscovery.cs" />
+    <Compile Include="SonyCameraDeviceInfo.cs" />
+    <Compile Include="SsdpDiscovery.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

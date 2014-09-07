@@ -2,11 +2,11 @@ using System.Reflection;
 using System.Resources;
 using System.Runtime.InteropServices;
 
-[assembly: AssemblyTitle("KzSoDiscovery")]
+[assembly: AssemblyTitle("KzSsdpDiscovery")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("KzSoDiscovery")]
+[assembly: AssemblyProduct("KzSsdpDiscovery")]
 [assembly: AssemblyCopyright("Copyright kazyx 2014")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
