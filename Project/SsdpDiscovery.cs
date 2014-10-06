@@ -141,8 +141,15 @@ namespace Kazyx.DeviceDiscovery
             {
                 if (e.SocketError == SocketError.Success && e.LastOperation == SocketAsyncOperation.SendTo)
                 {
-                    socket.ReceiveBufferSize = RESULT_BUFFER;
-                    socket.ReceiveAsync(rcv_event_args);
+                    try
+                    {
+                        socket.ReceiveBufferSize = RESULT_BUFFER;
+                        socket.ReceiveAsync(rcv_event_args);
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        Log("Socket is already disposed.");
+                    }
                 }
             });
             snd_event_args.Completed += SND_Handler;
@@ -156,7 +163,14 @@ namespace Kazyx.DeviceDiscovery
 
                     GetDeviceDescriptionAsync(DD_Handler, result);
 
-                    socket.ReceiveAsync(e);
+                    try
+                    {
+                        socket.ReceiveAsync(e);
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        Log("Socket is already disposed.");
+                    }
                 }
             });
             rcv_event_args.Completed += RCV_Handler;
