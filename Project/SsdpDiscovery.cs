@@ -9,7 +9,7 @@ using System.Xml.Linq;
 using System.Threading.Tasks;
 #if WINDOWS_PHONE
 using System.Net.Sockets;
-#elif NETFX_CORE
+#elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Networking.Sockets;
 using Windows.Networking;
@@ -175,7 +175,7 @@ namespace Kazyx.DeviceDiscovery
             });
             rcv_event_args.Completed += RCV_Handler;
             socket.SendToAsync(snd_event_args);
-#elif NETFX_CORE
+#elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
             var handler = new TypedEventHandler<DatagramSocket, DatagramSocketMessageReceivedEventArgs>((sender, args) =>
             {
                 if (timeout_called || args == null)
@@ -243,7 +243,7 @@ namespace Kazyx.DeviceDiscovery
             snd_event_args.Completed -= SND_Handler;
             rcv_event_args.Completed -= RCV_Handler;
             socket.Close();
-#elif NETFX_CORE
+#elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
             foreach (var socket in sockets)
             {
                 socket.Dispose();
