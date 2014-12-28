@@ -15,6 +15,7 @@ using Windows.Networking.Sockets;
 using Windows.Networking;
 using Windows.Foundation;
 using Windows.Networking.Connectivity;
+using Windows.Web.Http;
 #endif
 
 namespace Kazyx.DeviceDiscovery
@@ -93,6 +94,7 @@ namespace Kazyx.DeviceDiscovery
 
             var timeout_called = false;
 
+#if WINDOWS_PHONE
             var DD_Handler = new AsyncCallback(ar =>
             {
                 if (timeout_called)
@@ -125,8 +127,6 @@ namespace Kazyx.DeviceDiscovery
                     //Invalid DD location or network error.
                 }
             });
-
-#if WINDOWS_PHONE
             var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             socket.SendBufferSize = data_byte.Length;
 
@@ -176,7 +176,7 @@ namespace Kazyx.DeviceDiscovery
             rcv_event_args.Completed += RCV_Handler;
             socket.SendToAsync(snd_event_args);
 #elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
-            var handler = new TypedEventHandler<DatagramSocket, DatagramSocketMessageReceivedEventArgs>((sender, args) =>
+            var handler = new TypedEventHandler<DatagramSocket, DatagramSocketMessageReceivedEventArgs>(async (sender, args) =>
             {
                 if (timeout_called || args == null)
                 {
@@ -185,8 +185,7 @@ namespace Kazyx.DeviceDiscovery
                 var reader = args.GetDataReader();
                 var data = reader.ReadString(reader.UnconsumedBufferLength);
                 Log(data);
-
-                GetDeviceDescriptionAsync(DD_Handler, data);
+                await GetDeviceDescriptionAsync(data, args.RemoteAddress);
             });
 
             var filter = new ConnectionProfileFilter
@@ -199,13 +198,6 @@ namespace Kazyx.DeviceDiscovery
             var sockets = new List<DatagramSocket>();
             foreach (var profile in profiles)
             {
-                /*
-                var profile = NetworkInformation.GetInternetConnectionProfile();
-                if (profile == null)
-                {
-                    return;
-                }
-                */
                 var socket = new DatagramSocket();
                 sockets.Add(socket);
                 socket.MessageReceived += handler;
@@ -275,7 +267,8 @@ namespace Kazyx.DeviceDiscovery
             Search(st, timeout);
         }
 
-        private static void GetDeviceDescriptionAsync(AsyncCallback ac, string data)
+#if WINDOWS_PHONE
+        private static void GetDeviceDescriptionAsync(AsyncCallback ac, string data, HostName host)
         {
             var dd_location = ParseLocation(data);
             if (dd_location != null)
@@ -292,6 +285,32 @@ namespace Kazyx.DeviceDiscovery
                 }
             }
         }
+#elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
+        private HttpClient HttpClient = new HttpClient();
+
+        private async Task GetDeviceDescriptionAsync(string data, HostName host)
+        {
+            var dd_location = ParseLocation(data);
+            if (dd_location != null)
+            {
+                try
+                {
+                    var uri = new Uri(dd_location);
+                    var res = await HttpClient.GetAsync(uri);
+                    if (res.IsSuccessStatusCode)
+                    {
+                        var response = await res.Content.ReadAsStringAsync();
+                        OnDiscovered(new DeviceDescriptionEventArgs(response, uri));
+                        OnDiscovered(new SonyCameraDeviceEventArgs(AnalyzeDescription(response), uri));
+                    }
+                }
+                catch (Exception)
+                {
+                    //Invalid DD location.
+                }
+            }
+        }
+#endif
 
         private static string ParseLocation(string response)
         {
@@ -374,29 +393,59 @@ namespace Kazyx.DeviceDiscovery
     {
         private readonly string description;
 
-        public DeviceDescriptionEventArgs(string description)
-        {
-            this.description = description;
-        }
-
         public string Description
         {
             get { return description; }
         }
+
+#if WINDOWS_PHONE
+        public DeviceDescriptionEventArgs(string description)
+        {
+            this.description = description;
+        }
+#elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
+        private readonly Uri location;
+
+        public DeviceDescriptionEventArgs(string description, Uri location)
+        {
+            this.description = description;
+            this.location = location;
+        }
+
+        public Uri Location
+        {
+            get { return location; }
+        }
+#endif
     }
 
     public class SonyCameraDeviceEventArgs : EventArgs
     {
         private readonly SonyCameraDeviceInfo info;
 
-        public SonyCameraDeviceEventArgs(SonyCameraDeviceInfo info)
-        {
-            this.info = info;
-        }
-
         public SonyCameraDeviceInfo SonyCameraDevice
         {
             get { return info; }
         }
+
+#if WINDOWS_PHONE
+        public SonyCameraDeviceEventArgs(SonyCameraDeviceInfo info)
+        {
+            this.info = info;
+        }
+#elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
+        private readonly Uri location;
+
+        public SonyCameraDeviceEventArgs(SonyCameraDeviceInfo info, Uri location)
+        {
+            this.info = info;
+            this.location = location;
+        }
+
+        public Uri Location
+        {
+            get { return location; }
+        }
+#endif
     }
 }
