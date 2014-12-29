@@ -346,7 +346,7 @@ namespace Kazyx.DeviceDiscovery
         private const string upnp_ns = "{urn:schemas-upnp-org:device-1-0}";
         private const string sony_ns = "{urn:schemas-sony-com:av}";
 
-        private static SonyCameraDeviceInfo AnalyzeDescription(string response)
+        public static SonyCameraDeviceInfo AnalyzeDescription(string response)
         {
             //Log(response);
             var endpoints = new Dictionary<string, string>();
