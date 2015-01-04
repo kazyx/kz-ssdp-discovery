@@ -185,7 +185,7 @@ namespace Kazyx.DeviceDiscovery
                 var reader = args.GetDataReader();
                 var data = reader.ReadString(reader.UnconsumedBufferLength);
                 Log(data);
-                await GetDeviceDescriptionAsync(data, args.RemoteAddress);
+                await GetDeviceDescriptionAsync(data, args.LocalAddress);
             });
 
             var filter = new ConnectionProfileFilter
@@ -400,15 +400,15 @@ namespace Kazyx.DeviceDiscovery
         }
 #elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
 
-        public DeviceDescriptionEventArgs(string description, Uri location, HostName remote)
+        public DeviceDescriptionEventArgs(string description, Uri location, HostName local)
         {
             Description = description;
             Location = location;
-            RemoteAddress = remote;
+            LocalAddress = local;
         }
 
         public Uri Location { private set; get; }
-        public HostName RemoteAddress { private set; get; }
+        public HostName LocalAddress { private set; get; }
 #endif
     }
 
@@ -424,15 +424,15 @@ namespace Kazyx.DeviceDiscovery
 #elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
         private readonly Uri location;
 
-        public SonyCameraDeviceEventArgs(SonyCameraDeviceInfo info, Uri location, HostName remote)
+        public SonyCameraDeviceEventArgs(SonyCameraDeviceInfo info, Uri location, HostName local)
         {
             SonyCameraDevice = info;
             Location = location;
-            RemoteAddress = remote;
+            LocalAddress = local;
         }
 
         public Uri Location { private set; get; }
-        public HostName RemoteAddress { private set; get; }
+        public HostName LocalAddress { private set; get; }
 #endif
     }
 }
