@@ -288,7 +288,7 @@ namespace Kazyx.DeviceDiscovery
 #elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
         private HttpClient HttpClient = new HttpClient();
 
-        private async Task GetDeviceDescriptionAsync(string data, HostName host)
+        private async Task GetDeviceDescriptionAsync(string data, HostName remoteAddress)
         {
             var dd_location = ParseLocation(data);
             if (dd_location != null)
@@ -300,8 +300,8 @@ namespace Kazyx.DeviceDiscovery
                     if (res.IsSuccessStatusCode)
                     {
                         var response = await res.Content.ReadAsStringAsync();
-                        OnDiscovered(new DeviceDescriptionEventArgs(response, uri));
-                        OnDiscovered(new SonyCameraDeviceEventArgs(AnalyzeDescription(response), uri));
+                        OnDiscovered(new DeviceDescriptionEventArgs(response, uri, remoteAddress));
+                        OnDiscovered(new SonyCameraDeviceEventArgs(AnalyzeDescription(response), uri, remoteAddress));
                     }
                 }
                 catch (Exception)
@@ -391,61 +391,48 @@ namespace Kazyx.DeviceDiscovery
 
     public class DeviceDescriptionEventArgs : EventArgs
     {
-        private readonly string description;
-
-        public string Description
-        {
-            get { return description; }
-        }
+        public string Description { private set; get; }
 
 #if WINDOWS_PHONE
         public DeviceDescriptionEventArgs(string description)
         {
-            this.description = description;
+            Description = description;
         }
 #elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
-        private readonly Uri location;
 
-        public DeviceDescriptionEventArgs(string description, Uri location)
+        public DeviceDescriptionEventArgs(string description, Uri location, HostName remote)
         {
-            this.description = description;
-            this.location = location;
+            Description = description;
+            Location = location;
+            RemoteAddress = remote;
         }
 
-        public Uri Location
-        {
-            get { return location; }
-        }
+        public Uri Location { private set; get; }
+        public HostName RemoteAddress { private set; get; }
 #endif
     }
 
     public class SonyCameraDeviceEventArgs : EventArgs
     {
-        private readonly SonyCameraDeviceInfo info;
-
-        public SonyCameraDeviceInfo SonyCameraDevice
-        {
-            get { return info; }
-        }
+        public SonyCameraDeviceInfo SonyCameraDevice { private set; get; }
 
 #if WINDOWS_PHONE
         public SonyCameraDeviceEventArgs(SonyCameraDeviceInfo info)
         {
-            this.info = info;
+            SonyCameraDevice = info;
         }
 #elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
         private readonly Uri location;
 
-        public SonyCameraDeviceEventArgs(SonyCameraDeviceInfo info, Uri location)
+        public SonyCameraDeviceEventArgs(SonyCameraDeviceInfo info, Uri location, HostName remote)
         {
-            this.info = info;
-            this.location = location;
+            SonyCameraDevice = info;
+            Location = location;
+            RemoteAddress = remote;
         }
 
-        public Uri Location
-        {
-            get { return location; }
-        }
+        public Uri Location { private set; get; }
+        public HostName RemoteAddress { private set; get; }
 #endif
     }
 }
