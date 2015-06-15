@@ -4,9 +4,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Text;
+using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
-using System.Threading.Tasks;
 #if WINDOWS_PHONE
 using System.Net.Sockets;
 #elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
