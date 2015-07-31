@@ -172,3 +172,8 @@ UpgradeLog*.htm
 
 # Microsoft Fakes
 FakesAssemblies/
+
+project.lock.json
+
+# Visual Studio 2015 cache/options directory
+.vs/

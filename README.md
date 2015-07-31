@@ -10,8 +10,9 @@ kz-ssdp-discovery
  ```
 
 2. Open csproj file by Visual Studio
+ - /Project/KzSsdpDiscoveryUwp.csproj for Universal Windows Platform application.
  - /Project/KzSsdpDiscovery.csproj for Windows Phone 8.
- - /Project/KzSsdpDiscoveryUniversal.csproj for Universal Windows application.
+ - /Project/KzSsdpDiscoveryUniversal.csproj for Windows 8.1 Universal application.
 
 ##Discover sony camera API endpoint.
 1. Create SsdpDiscovery instance and set Event handler.
