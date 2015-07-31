@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -422,7 +421,6 @@ namespace Kazyx.DeviceDiscovery
             SonyCameraDevice = info;
         }
 #elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
-        private readonly Uri location;
 
         public SonyCameraDeviceEventArgs(SonyCameraDeviceInfo info, Uri location, HostName local)
         {
