@@ -8,12 +8,12 @@ using System.Xml;
 using System.Xml.Linq;
 #if WINDOWS_PHONE
 using System.Net.Sockets;
-#elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.Networking.Sockets;
-using Windows.Networking;
+#elif WINDOWS_PHONE_APP || WINDOWS_APP || NETFX_CORE
 using Windows.Foundation;
+using Windows.Networking;
 using Windows.Networking.Connectivity;
+using Windows.Networking.Sockets;
+using Windows.Storage.Streams;
 using Windows.Web.Http;
 #endif
 
@@ -22,6 +22,11 @@ namespace Kazyx.DeviceDiscovery
     public class SsdpDiscovery
     {
         private const string MULTICAST_ADDRESS = "239.255.255.250";
+
+#if WINDOWS_PHONE_APP || WINDOWS_APP || NETFX_CORE
+        private readonly HostName MULTICAST_HOST = new HostName(MULTICAST_ADDRESS);
+#endif
+
         private const int SSDP_PORT = 1900;
         private const int RESULT_BUFFER = 8192;
 
@@ -73,13 +78,6 @@ namespace Kazyx.DeviceDiscovery
         private async void Search(string st, TimeSpan? timeout = null)
         {
             Log("Search");
-
-            int timeoutSec = (timeout == null) ? (int)DEFAULT_TIMEOUT.TotalSeconds : (int)timeout.Value.TotalSeconds;
-
-            if (timeoutSec < 2)
-            {
-                timeoutSec = 2;
-            }
 
             var ssdp_data = new StringBuilder()
                 .Append("M-SEARCH * HTTP/1.1").Append("\r\n")
@@ -177,6 +175,7 @@ namespace Kazyx.DeviceDiscovery
 #elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
             var handler = new TypedEventHandler<DatagramSocket, DatagramSocketMessageReceivedEventArgs>(async (sender, args) =>
             {
+                Log("Datagram message received");
                 if (timeout_called || args == null)
                 {
                     return;
@@ -197,36 +196,34 @@ namespace Kazyx.DeviceDiscovery
             var sockets = new List<DatagramSocket>();
             foreach (var profile in profiles)
             {
+                Log("Send M-Search to " + profile.ProfileName);
                 var socket = new DatagramSocket();
+                socket.Control.DontFragment = true;
                 sockets.Add(socket);
                 socket.MessageReceived += handler;
-                try
-                {
-                    Log("Send M-Search to " + profile.ProfileName);
-                    await socket.BindServiceNameAsync("", profile.NetworkAdapter);
-                }
-                catch (Exception)
-                {
-                    Log("Failed to bind NetworkAdapter");
-                    return;
-                }
 
-                var host = new HostName(MULTICAST_ADDRESS);
                 try
                 {
-                    var output = await socket.GetOutputStreamAsync(host, SSDP_PORT.ToString());
-                    await output.WriteAsync(data_byte.AsBuffer());
-                    await socket.OutputStream.FlushAsync();
+                    await socket.BindServiceNameAsync("", profile.NetworkAdapter);
+                    socket.JoinMulticastGroup(MULTICAST_HOST);
+
+                    using (var output = await socket.GetOutputStreamAsync(MULTICAST_HOST, SSDP_PORT.ToString()))
+                    {
+                        using (var writer = new DataWriter(output))
+                        {
+                            writer.WriteBytes(data_byte);
+                            await writer.StoreAsync();
+                        }
+                    }
                 }
-                catch (Exception)
+                catch (Exception e)
                 {
-                    Log("Failed to send multicast");
-                    return;
+                    Log("Failed to send multicast: " + e.StackTrace);
+                    continue;
                 }
             }
 #endif
-
-            await Task.Delay(TimeSpan.FromSeconds(timeoutSec));
+            await Task.Delay((timeout == null) ? DEFAULT_TIMEOUT : timeout.Value);
 
             Log("Search Timeout");
             timeout_called = true;
