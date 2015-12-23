@@ -190,16 +190,18 @@ namespace Kazyx.DeviceDiscovery
                 await GetDeviceDescriptionAsync(data, args.LocalAddress);
             });
 
-            var filter = new ConnectionProfileFilter
-            {
-                IsConnected = true,
-                IsWwanConnectionProfile = false,
-                IsWlanConnectionProfile = true
-            };
-            var profiles = await NetworkInformation.FindConnectionProfilesAsync(filter);
+            var profiles = NetworkInformation.GetConnectionProfiles();
             var sockets = new List<DatagramSocket>();
             foreach (var profile in profiles)
             {
+                switch (profile.NetworkAdapter.IanaInterfaceType)
+                {
+                    case 6: // Ethernet
+                    case 71: // 802.11
+                        break;
+                    default:
+                        continue;
+                }
                 Log("Send M-Search to " + profile.ProfileName);
                 var socket = new DatagramSocket();
                 socket.Control.DontFragment = true;
