@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml;
 using System.Xml.Linq;
 #if WINDOWS_PHONE
 using System.Net.Sockets;
@@ -110,7 +109,12 @@ namespace Kazyx.DeviceDiscovery
                         {
                             var response = reader.ReadToEnd();
                             OnDiscovered(new DeviceDescriptionEventArgs(response));
-                            OnDiscovered(new SonyCameraDeviceEventArgs(AnalyzeDescription(response)));
+
+                            var camera = AnalyzeDescription(response);
+                            if (camera != null)
+                            {
+                                OnDiscovered(new SonyCameraDeviceEventArgs(camera, uri, remoteAddress));
+                            }
                         }
                         catch (Exception)
                         {
@@ -297,7 +301,12 @@ namespace Kazyx.DeviceDiscovery
                     {
                         var response = await res.Content.ReadAsStringAsync();
                         OnDiscovered(new DeviceDescriptionEventArgs(response, uri, remoteAddress));
-                        OnDiscovered(new SonyCameraDeviceEventArgs(AnalyzeDescription(response), uri, remoteAddress));
+
+                        var camera = AnalyzeDescription(response);
+                        if (camera != null)
+                        {
+                            OnDiscovered(new SonyCameraDeviceEventArgs(camera, uri, remoteAddress));
+                        }
                     }
                 }
                 catch (Exception)
@@ -349,10 +358,18 @@ namespace Kazyx.DeviceDiscovery
 
             var xml = XDocument.Parse(response);
             var device = xml.Root.Element(upnp_ns + "device");
+            if (device == null)
+            {
+                return null;
+            }
             var f_name = device.Element(upnp_ns + "friendlyName").Value;
             var m_name = device.Element(upnp_ns + "modelName").Value;
             var udn = device.Element(upnp_ns + "UDN").Value;
             var info = device.Element(sony_ns + "X_ScalarWebAPI_DeviceInfo");
+            if (info == null)
+            {
+                return null;
+            }
             var list = info.Element(sony_ns + "X_ScalarWebAPI_ServiceList");
 
             foreach (var service in list.Elements())
@@ -373,7 +390,7 @@ namespace Kazyx.DeviceDiscovery
 
             if (endpoints.Count == 0)
             {
-                throw new XmlException("No endoint found in XML");
+                return null;
             }
 
             return new SonyCameraDeviceInfo(udn, m_name, f_name, endpoints);
@@ -394,7 +411,7 @@ namespace Kazyx.DeviceDiscovery
         {
             Description = description;
         }
-#elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
+#elif WINDOWS_PHONE_APP || WINDOWS_APP || NETFX_CORE
 
         public DeviceDescriptionEventArgs(string description, Uri location, HostName local)
         {
@@ -417,7 +434,7 @@ namespace Kazyx.DeviceDiscovery
         {
             SonyCameraDevice = info;
         }
-#elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
+#elif WINDOWS_PHONE_APP || WINDOWS_APP || NETFX_CORE
 
         public SonyCameraDeviceEventArgs(SonyCameraDeviceInfo info, Uri location, HostName local)
         {
