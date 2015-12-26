@@ -187,10 +187,10 @@ namespace Kazyx.DeviceDiscovery
                 var reader = args.GetDataReader();
                 var data = reader.ReadString(reader.UnconsumedBufferLength);
                 Log(data);
-                await GetDeviceDescriptionAsync(data, args.LocalAddress);
+                await GetDeviceDescriptionAsync(data, args.LocalAddress).ConfigureAwait(false);
             });
 
-            var profiles = NetworkInformation.GetConnectionProfiles();
+            var profiles = await GetConnectionProfilesAsync().ConfigureAwait(false);
             var sockets = new List<DatagramSocket>();
             foreach (var profile in profiles)
             {
@@ -229,7 +229,7 @@ namespace Kazyx.DeviceDiscovery
                 }
             }
 #endif
-            await Task.Delay((timeout == null) ? DEFAULT_TIMEOUT : timeout.Value);
+            await Task.Delay((timeout == null) ? DEFAULT_TIMEOUT : timeout.Value).ConfigureAwait(false);
 
             Log("Search Timeout");
             timeout_called = true;
@@ -245,6 +245,20 @@ namespace Kazyx.DeviceDiscovery
 #endif
             OnTimeout(new EventArgs());
         }
+
+#if WINDOWS_PHONE_APP || WINDOWS_APP || NETFX_CORE
+        private Task<IReadOnlyList<ConnectionProfile>> GetConnectionProfilesAsync()
+        {
+            var tcs = new TaskCompletionSource<IReadOnlyList<ConnectionProfile>>();
+
+            Task.Run(() =>
+            {
+                tcs.SetResult(NetworkInformation.GetConnectionProfiles());
+            });
+
+            return tcs.Task;
+        }
+#endif
 
         /// <summary>
         /// Search sony camera devices and retrieve the endpoint URLs.
