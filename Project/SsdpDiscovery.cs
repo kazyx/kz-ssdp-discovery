@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -184,76 +185,102 @@ namespace Kazyx.DeviceDiscovery
                 {
                     return;
                 }
-                var reader = args.GetDataReader();
-                var data = reader.ReadString(reader.UnconsumedBufferLength);
+                string data;
+                using (var reader = args.GetDataReader())
+                {
+                    data = reader.ReadString(reader.UnconsumedBufferLength);
+                }
                 Log(data);
                 await GetDeviceDescriptionAsync(data, args.LocalAddress).ConfigureAwait(false);
             });
 
-            var profiles = await GetConnectionProfilesAsync().ConfigureAwait(false);
-            var sockets = new List<DatagramSocket>();
-            foreach (var profile in profiles)
+            var adapters = await GetActiveAdaptersAsync().ConfigureAwait(false);
+
+            await Task.WhenAll(adapters.Select(async adapter =>
             {
-                switch (profile.NetworkAdapter.IanaInterfaceType)
+                using (var socket = new DatagramSocket())
                 {
-                    case 6: // Ethernet
-                    case 71: // 802.11
-                        break;
-                    default:
-                        continue;
-                }
-                Log("Send M-Search to " + profile.ProfileName);
-                var socket = new DatagramSocket();
-                socket.Control.DontFragment = true;
-                sockets.Add(socket);
-                socket.MessageReceived += handler;
+                    socket.Control.DontFragment = true;
+                    socket.MessageReceived += handler;
 
-                try
-                {
-                    await socket.BindServiceNameAsync("", profile.NetworkAdapter);
-                    socket.JoinMulticastGroup(MULTICAST_HOST);
-
-                    using (var output = await socket.GetOutputStreamAsync(MULTICAST_HOST, SSDP_PORT.ToString()))
+                    try
                     {
-                        using (var writer = new DataWriter(output))
+                        await socket.BindServiceNameAsync("", adapter);
+                        socket.JoinMulticastGroup(MULTICAST_HOST);
+
+                        using (var output = await socket.GetOutputStreamAsync(MULTICAST_HOST, SSDP_PORT.ToString()))
                         {
-                            writer.WriteBytes(data_byte);
-                            await writer.StoreAsync();
+                            using (var writer = new DataWriter(output))
+                            {
+                                writer.WriteBytes(data_byte);
+                                await writer.StoreAsync();
+                            }
                         }
+                        await Task.Delay((timeout == null) ? DEFAULT_TIMEOUT : timeout.Value).ConfigureAwait(false);
+                        Log("Search Timeout");
+                        timeout_called = true;
+                    }
+                    catch (Exception e)
+                    {
+                        Log("Failed to send multicast: " + e.StackTrace);
+                    }
+                    finally
+                    {
+                        socket.MessageReceived -= handler;
                     }
                 }
-                catch (Exception e)
-                {
-                    Log("Failed to send multicast: " + e.StackTrace);
-                    continue;
-                }
-            }
+            })).ConfigureAwait(false);
 #endif
+#if WINDOWS_PHONE
             await Task.Delay((timeout == null) ? DEFAULT_TIMEOUT : timeout.Value).ConfigureAwait(false);
 
             Log("Search Timeout");
             timeout_called = true;
-#if WINDOWS_PHONE
             snd_event_args.Completed -= SND_Handler;
             rcv_event_args.Completed -= RCV_Handler;
             socket.Close();
-#elif WINDOWS_PHONE_APP||WINDOWS_APP||NETFX_CORE
-            foreach (var socket in sockets)
-            {
-                socket.Dispose();
-            }
 #endif
             OnTimeout(new EventArgs());
         }
 
 #if WINDOWS_PHONE_APP || WINDOWS_APP || NETFX_CORE
-        private Task<IReadOnlyList<ConnectionProfile>> GetConnectionProfilesAsync()
+        private static Task<IList<NetworkAdapter>> GetActiveAdaptersAsync()
         {
-            var tcs = new TaskCompletionSource<IReadOnlyList<ConnectionProfile>>();
+            var tcs = new TaskCompletionSource<IList<NetworkAdapter>>();
 
             Task.Run(() =>
             {
-                tcs.SetResult(NetworkInformation.GetConnectionProfiles());
+                var profiles = NetworkInformation.GetConnectionProfiles();
+                var list = new List<NetworkAdapter>();
+                foreach (var profile in profiles)
+                {
+                    if (profile.GetNetworkConnectivityLevel() == NetworkConnectivityLevel.None)
+                    {
+                        // Historical profiles.
+                        Log("ConnectivityLevel None: " + profile.ProfileName);
+                        continue;
+                    }
+
+                    var adapter = profile.NetworkAdapter;
+
+                    switch (adapter.IanaInterfaceType)
+                    {
+                        case 6: // Ethernet
+                        case 71: // 802.11
+                            break;
+                        default:
+                            Log("Type mismatch: " + profile.ProfileName);
+                            continue;
+                    }
+
+                    if (!list.Contains(adapter))
+                    {
+                        Log("Active Adapter: " + profile.ProfileName);
+                        list.Add(adapter);
+                    }
+                }
+
+                tcs.SetResult(list);
             });
 
             return tcs.Task;
