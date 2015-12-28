@@ -257,7 +257,7 @@ namespace Kazyx.DeviceDiscovery
                     if (profile.GetNetworkConnectivityLevel() == NetworkConnectivityLevel.None)
                     {
                         // Historical profiles.
-                        Log("ConnectivityLevel None: " + profile.ProfileName);
+                        // Log("ConnectivityLevel None: " + profile.ProfileName);
                         continue;
                     }
 
@@ -269,7 +269,7 @@ namespace Kazyx.DeviceDiscovery
                         case 71: // 802.11
                             break;
                         default:
-                            Log("Type mismatch: " + profile.ProfileName);
+                            // Log("Type mismatch: " + profile.ProfileName);
                             continue;
                     }
 
