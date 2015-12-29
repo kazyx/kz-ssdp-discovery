@@ -3,14 +3,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-using Windows.Foundation;
 using Windows.Networking;
 using Windows.Networking.Connectivity;
 using Windows.Networking.Sockets;
+using Windows.Storage.Streams;
 using Windows.Web.Http;
 
 namespace Kazyx.DeviceDiscovery
@@ -41,39 +40,15 @@ namespace Kazyx.DeviceDiscovery
 
         public event SonyCameraDeviceHandler SonyCameraDeviceDiscovered;
 
-        protected void OnDiscovered(SonyCameraDeviceEventArgs e)
-        {
-            if (SonyCameraDeviceDiscovered != null)
-            {
-                SonyCameraDeviceDiscovered(this, e);
-            }
-        }
-
         public delegate void DeviceDescriptionHandler(object sender, DeviceDescriptionEventArgs e);
 
         public event DeviceDescriptionHandler DescriptionObtained;
 
-        protected void OnDiscovered(DeviceDescriptionEventArgs e)
-        {
-            if (DescriptionObtained != null)
-            {
-                DescriptionObtained(this, e);
-            }
-        }
-
         public event EventHandler Finished;
-
-        protected void OnTimeout(EventArgs e)
-        {
-            if (Finished != null)
-            {
-                Finished(this, e);
-            }
-        }
 
         private async void Search(string st, TimeSpan? timeout = null)
         {
-            Log("Search");
+            Log("Search - " + st);
 
             var ssdp_data = new StringBuilder()
                 .Append("M-SEARCH * HTTP/1.1").Append("\r\n")
@@ -91,35 +66,21 @@ namespace Kazyx.DeviceDiscovery
                 using (var socket = new DatagramSocket())
                 {
                     socket.Control.DontFragment = true;
-
-                    var handler = new TypedEventHandler<DatagramSocket, DatagramSocketMessageReceivedEventArgs>((sender, args) =>
-                    {
-                        Log("Datagram message received");
-                        if (args == null)
-                        {
-                            return;
-                        }
-                        string data;
-                        using (var reader = args.GetDataReader())
-                        {
-                            data = reader.ReadString(reader.UnconsumedBufferLength);
-                        }
-                        Log(data);
-                        Task task = GetDeviceDescriptionAsync(data, args.LocalAddress);
-                    });
-
-                    socket.MessageReceived += handler;
+                    socket.MessageReceived += OnDatagramSocketMessageReceived;
 
                     try
                     {
                         await socket.BindServiceNameAsync("", adapter);
-                        socket.JoinMulticastGroup(MULTICAST_HOST);
 
                         using (var output = await socket.GetOutputStreamAsync(MULTICAST_HOST, SSDP_PORT.ToString()))
                         {
-                            var buffer = Encoding.UTF8.GetBytes(ssdp_data).AsBuffer();
-                            await output.WriteAsync(buffer);
+                            using (var writer = new DataWriter(output))
+                            {
+                                writer.WriteString(ssdp_data);
+                                await writer.StoreAsync();
+                            }
                         }
+
                         await Task.Delay(timeout ?? DEFAULT_TIMEOUT).ConfigureAwait(false);
                         Log("Search Timeout");
                     }
@@ -128,12 +89,28 @@ namespace Kazyx.DeviceDiscovery
                         Log("Failed to send multicast: " + e.StackTrace);
                     }
 
-                    socket.MessageReceived -= handler;
+                    socket.MessageReceived -= OnDatagramSocketMessageReceived;
                     await socket.CancelIOAsync();
                 }
             })).ConfigureAwait(false);
 
-            OnTimeout(new EventArgs());
+            Finished?.Invoke(this, new EventArgs());
+        }
+
+        private void OnDatagramSocketMessageReceived(DatagramSocket sender, DatagramSocketMessageReceivedEventArgs args)
+        {
+            Log("Datagram message received");
+            if (args == null)
+            {
+                return;
+            }
+            string data;
+            using (var reader = args.GetDataReader())
+            {
+                data = reader.ReadString(reader.UnconsumedBufferLength);
+            }
+            Log(data);
+            Task task = GetDeviceDescriptionAsync(data, args.LocalAddress);
         }
 
         public IList<NetworkAdapter> TargetNetworkAdapters
@@ -225,7 +202,7 @@ namespace Kazyx.DeviceDiscovery
                     var uri = new Uri(dd_location);
                     if (_cache.ContainsKey(uri))
                     {
-                        Log("Cache hit: " + uri);
+                        Log("HTTP Cache hit: " + uri);
                         OnDescriptionObtained(_cache[uri], uri, remoteAddress);
                         return;
                     }
@@ -249,12 +226,12 @@ namespace Kazyx.DeviceDiscovery
 
         private void OnDescriptionObtained(string response, Uri uri, HostName remoteAddress)
         {
-            OnDiscovered(new DeviceDescriptionEventArgs(response, uri, remoteAddress));
+            DescriptionObtained?.Invoke(this, new DeviceDescriptionEventArgs(response, uri, remoteAddress));
 
             var camera = AnalyzeDescription(response);
             if (camera != null)
             {
-                OnDiscovered(new SonyCameraDeviceEventArgs(camera, uri, remoteAddress));
+                SonyCameraDeviceDiscovered?.Invoke(this, new SonyCameraDeviceEventArgs(camera, uri, remoteAddress));
             }
         }
 
