@@ -83,6 +83,7 @@ namespace Kazyx.DeviceDiscovery
 
                         await Task.Delay(timeout ?? DEFAULT_TIMEOUT).ConfigureAwait(false);
                         Log("Search Timeout");
+                        await socket.CancelIOAsync();
                     }
                     catch (Exception e)
                     {
@@ -90,7 +91,6 @@ namespace Kazyx.DeviceDiscovery
                     }
 
                     socket.MessageReceived -= OnDatagramSocketMessageReceived;
-                    await socket.CancelIOAsync();
                 }
             })).ConfigureAwait(false);
 
