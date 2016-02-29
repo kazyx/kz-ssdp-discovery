@@ -113,19 +113,19 @@ namespace Kazyx.DeviceDiscovery
             Task task = GetDeviceDescriptionAsync(data, args.LocalAddress);
         }
 
-        public IList<NetworkAdapter> TargetNetworkAdapters
+        public HashSet<NetworkAdapter> TargetNetworkAdapters
         {
             set; get;
         }
 
-        public static Task<IList<NetworkAdapter>> GetActiveAdaptersAsync()
+        public static Task<HashSet<NetworkAdapter>> GetActiveAdaptersAsync()
         {
-            var tcs = new TaskCompletionSource<IList<NetworkAdapter>>();
+            var tcs = new TaskCompletionSource<HashSet<NetworkAdapter>>();
 
             Task.Run(() =>
             {
                 var profiles = NetworkInformation.GetConnectionProfiles();
-                var list = new List<NetworkAdapter>();
+                var list = new HashSet<NetworkAdapter>();
                 foreach (var profile in profiles)
                 {
                     if (profile.GetNetworkConnectivityLevel() == NetworkConnectivityLevel.None)
