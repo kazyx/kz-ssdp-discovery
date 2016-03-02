@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
-#if WINDOWS_PHONE
+using System.Net;
+#if WINDOWS_PHONE||DOT_NET
 using System.Net.Sockets;
 #elif WINDOWS_PHONE_APP || WINDOWS_APP || NETFX_CORE
 using Windows.Foundation;
@@ -91,7 +91,7 @@ namespace Kazyx.DeviceDiscovery
 
             var timeout_called = false;
 
-#if WINDOWS_PHONE
+#if WINDOWS_PHONE||DOT_NET
             var DD_Handler = new AsyncCallback(ar =>
             {
                 if (timeout_called)
@@ -114,7 +114,7 @@ namespace Kazyx.DeviceDiscovery
                             var camera = AnalyzeDescription(response);
                             if (camera != null)
                             {
-                                OnDiscovered(new SonyCameraDeviceEventArgs(camera, uri, remoteAddress));
+                                OnDiscovered(new SonyCameraDeviceEventArgs(camera, req.RequestUri));
                             }
                         }
                         catch (Exception)
@@ -231,7 +231,7 @@ namespace Kazyx.DeviceDiscovery
                 }
             })).ConfigureAwait(false);
 #endif
-#if WINDOWS_PHONE
+#if WINDOWS_PHONE||DOT_NET
             await Task.Delay((timeout == null) ? DEFAULT_TIMEOUT : timeout.Value).ConfigureAwait(false);
 
             Log("Search Timeout");
@@ -310,8 +310,8 @@ namespace Kazyx.DeviceDiscovery
             Search(st, timeout);
         }
 
-#if WINDOWS_PHONE
-        private static void GetDeviceDescriptionAsync(AsyncCallback ac, string data, HostName host)
+#if WINDOWS_PHONE||DOT_NET
+        private static void GetDeviceDescriptionAsync(AsyncCallback ac, string data)
         {
             var dd_location = ParseLocation(data);
             if (dd_location != null)
@@ -449,7 +449,7 @@ namespace Kazyx.DeviceDiscovery
     {
         public string Description { private set; get; }
 
-#if WINDOWS_PHONE
+#if WINDOWS_PHONE||DOT_NET
         public DeviceDescriptionEventArgs(string description)
         {
             Description = description;
@@ -472,8 +472,8 @@ namespace Kazyx.DeviceDiscovery
     {
         public SonyCameraDeviceInfo SonyCameraDevice { private set; get; }
 
-#if WINDOWS_PHONE
-        public SonyCameraDeviceEventArgs(SonyCameraDeviceInfo info)
+#if WINDOWS_PHONE||DOT_NET
+        public SonyCameraDeviceEventArgs(SonyCameraDeviceInfo info, Uri location)
         {
             SonyCameraDevice = info;
         }
