@@ -321,8 +321,10 @@ namespace Kazyx.DeviceDiscovery
 
         private static void Log(string message)
         {
-            Debug.WriteLine("[SoDiscovery] " + message);
+            Logger?.Invoke("[SoDiscovery] " + message);
         }
+
+        public static Action<string> Logger { set; get; } = (s) => Debug.WriteLine(s);
     }
 
     public class DeviceDescriptionEventArgs : EventArgs
