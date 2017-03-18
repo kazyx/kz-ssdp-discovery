@@ -178,3 +178,4 @@ FakesAssemblies/
 
 project.lock.json
 *.nuget.props
+*.sln
